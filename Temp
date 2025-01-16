@@ -1,0 +1,71 @@
+function createChartsAndStats() {
+  var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
+  var data = sheet.getDataRange().getValues();
+
+  // Assuming that the first row contains headers
+  var headers = data[0];
+  var issueTypeIndex = headers.indexOf("Issue Type");
+  var statusIndex = headers.indexOf("Status");
+  var resolutionIndex = headers.indexOf("Resolution");
+
+  // Create Summary Stats
+  var issueTypeCounts = {};
+  var statusCounts = {};
+  var resolutionCounts = {};
+
+  for (var i = 1; i < data.length; i++) {
+    var issueType = data[i][issueTypeIndex];
+    var status = data[i][statusIndex];
+    var resolution = data[i][resolutionIndex];
+
+    // Count issue types
+    issueTypeCounts[issueType] = (issueTypeCounts[issueType] || 0) + 1;
+
+    // Count statuses
+    statusCounts[status] = (statusCounts[status] || 0) + 1;
+
+    // Count resolutions
+    resolutionCounts[resolution] = (resolutionCounts[resolution] || 0) + 1;
+  }
+
+  // Output the stats into the sheet
+  var statsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Summary Stats");
+  if (!statsSheet) {
+    statsSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet("Summary Stats");
+  } else {
+    statsSheet.clear();  // Clear existing data
+  }
+
+  var statsData = [
+    ["Issue Type", "Count"],
+    ...Object.entries(issueTypeCounts),
+    ["Status", "Count"],
+    ...Object.entries(statusCounts),
+    ["Resolution", "Count"],
+    ...Object.entries(resolutionCounts)
+  ];
+
+  statsSheet.getRange(1, 1, statsData.length, 2).setValues(statsData);
+
+  // Create Charts
+  // 1. Bar Chart for Issue Statuses
+  var statusChart = statsSheet.newChart()
+    .setChartType(Charts.ChartType.BAR)
+    .addRange(statsSheet.getRange("A2:B" + (Object.keys(statusCounts).length + 1)))
+    .setPosition(1, 3, 0, 0)
+    .setOption("title", "Issue Status Distribution")
+    .setOption("hAxis", { title: "Status" })
+    .setOption("vAxis", { title: "Count" })
+    .build();
+
+  // 2. Pie Chart for Resolution Status
+  var resolutionChart = statsSheet.newChart()
+    .setChartType(Charts.ChartType.PIE)
+    .addRange(statsSheet.getRange("A" + (Object.keys(statusCounts).length + 2) + ":B" + (Object.keys(statusCounts).length + Object.keys(resolutionCounts).length + 2)))
+    .setPosition(20, 3, 0, 0)
+    .setOption("title", "Issue Resolution Distribution")
+    .build();
+
+  statsSheet.insertChart(statusChart);
+  statsSheet.insertChart(resolutionChart);
+}
