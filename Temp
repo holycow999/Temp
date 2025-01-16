@@ -2,7 +2,6 @@ function createChartsAndStats() {
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
   var data = sheet.getDataRange().getValues();
 
-  // Assuming the first row contains headers
   var headers = data[0];
   var issueTypeIndex = headers.indexOf("Issue Type");
   var assigneeIndex = headers.indexOf("Assignee");
@@ -12,7 +11,6 @@ function createChartsAndStats() {
   var resolutionIndex = headers.indexOf("Resolution");
   var createdIndex = headers.indexOf("Created");
 
-  // Summary Stats
   var issueTypeCounts = {};
   var assigneeCounts = {};
   var reporterCounts = {};
@@ -22,10 +20,9 @@ function createChartsAndStats() {
   var thisWeekCount = 0;
   var thisMonthCount = 0;
 
-  // Current Date
   var today = new Date();
   var startOfWeek = new Date(today);
-  startOfWeek.setDate(today.getDate() - today.getDay()); // Sunday as the start of the week
+  startOfWeek.setDate(today.getDate() - today.getDay());
   var startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
   for (var i = 1; i < data.length; i++) {
@@ -37,7 +34,6 @@ function createChartsAndStats() {
     var resolution = data[i][resolutionIndex];
     var createdDate = new Date(data[i][createdIndex]);
 
-    // Count attributes
     issueTypeCounts[issueType] = (issueTypeCounts[issueType] || 0) + 1;
     assigneeCounts[assignee] = (assigneeCounts[assignee] || 0) + 1;
     reporterCounts[reporter] = (reporterCounts[reporter] || 0) + 1;
@@ -45,20 +41,17 @@ function createChartsAndStats() {
     statusCounts[status] = (statusCounts[status] || 0) + 1;
     resolutionCounts[resolution] = (resolutionCounts[resolution] || 0) + 1;
 
-    // Count created this week and this month
     if (createdDate >= startOfWeek) thisWeekCount++;
     if (createdDate >= startOfMonth) thisMonthCount++;
   }
 
-  // Output the stats into a new sheet
   var statsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Summary Stats");
   if (!statsSheet) {
     statsSheet = SpreadsheetApp.getActiveSpreadsheet().insertSheet("Summary Stats");
   } else {
-    statsSheet.clear(); // Clear existing data
+    statsSheet.clear();
   }
 
-  // Prepare and display stats
   var statsData = [
     ["Category", "Value", "Count"],
     ["Issues Created", "This Week", thisWeekCount],
@@ -79,8 +72,6 @@ function createChartsAndStats() {
 
   statsSheet.getRange(1, 1, statsData.length, 3).setValues(statsData);
 
-  // Create Charts
-  // Bar Chart for Status Distribution
   var statusRange = statsSheet.getRange("B" + (statsData.findIndex(row => row[0] === "Status") + 2) + ":C" + (statsData.findIndex(row => row[0] === "Resolution") - 1));
   var statusChart = statsSheet.newChart()
     .setChartType(Charts.ChartType.BAR)
@@ -89,7 +80,6 @@ function createChartsAndStats() {
     .setOption("title", "Issue Status Distribution")
     .build();
 
-  // Pie Chart for Resolution Distribution
   var resolutionRange = statsSheet.getRange("B" + (statsData.findIndex(row => row[0] === "Resolution") + 2) + ":C" + statsData.length);
   var resolutionChart = statsSheet.newChart()
     .setChartType(Charts.ChartType.PIE)
