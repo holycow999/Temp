@@ -10,6 +10,7 @@ function createChartsAndStats() {
   var statusIndex = headers.indexOf("Status");
   var resolutionIndex = headers.indexOf("Resolution");
   var createdIndex = headers.indexOf("Created");
+  var resolvedIndex = headers.indexOf("Resolved");
 
   var issueTypeCounts = {};
   var assigneeCounts = {};
@@ -17,12 +18,17 @@ function createChartsAndStats() {
   var priorityCounts = {};
   var statusCounts = {};
   var resolutionCounts = {};
-  var thisWeekCount = 0;
-  var thisMonthCount = 0;
+  var assigneeOpenedCounts = {};
+  var assigneeClosedCounts = {};
+  var assigneeClosedLastWeekCounts = {};
 
   var today = new Date();
   var startOfWeek = new Date(today);
   startOfWeek.setDate(today.getDate() - today.getDay());
+  var startOfLastWeek = new Date(startOfWeek);
+  startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
+  var endOfLastWeek = new Date(startOfWeek);
+  endOfLastWeek.setDate(endOfLastWeek.getDate() - 1);
   var startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
   for (var i = 1; i < data.length; i++) {
@@ -33,6 +39,7 @@ function createChartsAndStats() {
     var status = data[i][statusIndex];
     var resolution = data[i][resolutionIndex];
     var createdDate = new Date(data[i][createdIndex]);
+    var resolvedDate = data[i][resolvedIndex] ? new Date(data[i][resolvedIndex]) : null;
 
     issueTypeCounts[issueType] = (issueTypeCounts[issueType] || 0) + 1;
     assigneeCounts[assignee] = (assigneeCounts[assignee] || 0) + 1;
@@ -41,8 +48,13 @@ function createChartsAndStats() {
     statusCounts[status] = (statusCounts[status] || 0) + 1;
     resolutionCounts[resolution] = (resolutionCounts[resolution] || 0) + 1;
 
-    if (createdDate >= startOfWeek) thisWeekCount++;
-    if (createdDate >= startOfMonth) thisMonthCount++;
+    assigneeOpenedCounts[assignee] = (assigneeOpenedCounts[assignee] || 0) + 1;
+    if (resolvedDate) {
+      assigneeClosedCounts[assignee] = (assigneeClosedCounts[assignee] || 0) + 1;
+      if (resolvedDate >= startOfLastWeek && resolvedDate <= endOfLastWeek) {
+        assigneeClosedLastWeekCounts[assignee] = (assigneeClosedLastWeekCounts[assignee] || 0) + 1;
+      }
+    }
   }
 
   var statsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Summary Stats");
@@ -54,8 +66,8 @@ function createChartsAndStats() {
 
   var statsData = [
     ["Category", "Value", "Count"],
-    ["Issues Created", "This Week", thisWeekCount],
-    ["Issues Created", "This Month", thisMonthCount],
+    ["Issues Created", "This Week", Object.values(issueTypeCounts).reduce((a, b) => a + b, 0)],
+    ["Issues Created", "This Month", Object.values(assigneeOpenedCounts).reduce((a, b) => a + b, 0)],
     ["Issue Type", "", ""],
     ...Object.entries(issueTypeCounts).map(([key, value]) => ["", key, value]),
     ["Assignee", "", ""],
@@ -68,26 +80,27 @@ function createChartsAndStats() {
     ...Object.entries(statusCounts).map(([key, value]) => ["", key, value]),
     ["Resolution", "", ""],
     ...Object.entries(resolutionCounts).map(([key, value]) => ["", key, value]),
+    ["Assignee Performance", "", ""],
+    ...Object.keys(assigneeOpenedCounts).map((assignee) => [
+      assignee,
+      "Opened: " + (assigneeOpenedCounts[assignee] || 0),
+      "Closed: " + (assigneeClosedCounts[assignee] || 0) + ", Closed Last Week: " + (assigneeClosedLastWeekCounts[assignee] || 0)
+    ]),
   ];
 
   statsSheet.getRange(1, 1, statsData.length, 3).setValues(statsData);
 
-  var statusRange = statsSheet.getRange("B" + (statsData.findIndex(row => row[0] === "Status") + 2) + ":C" + (statsData.findIndex(row => row[0] === "Resolution") - 1));
-  var statusChart = statsSheet.newChart()
-    .setChartType(Charts.ChartType.BAR)
-    .addRange(statusRange)
-    .setPosition(1, 5, 0, 0)
-    .setOption("title", "Issue Status Distribution")
+  // Assignee Performance Chart
+  var assigneeRange = statsSheet.getRange(
+    "A" + (statsData.findIndex(row => row[0] === "Assignee Performance") + 2) + 
+    ":C" + statsData.length
+  );
+  var assigneeChart = statsSheet.newChart()
+    .setChartType(Charts.ChartType.COLUMN)
+    .addRange(assigneeRange)
+    .setPosition(40, 5, 0, 0)
+    .setOption("title", "Assignee Performance (Opened, Closed, Closed Last Week)")
     .build();
 
-  var resolutionRange = statsSheet.getRange("B" + (statsData.findIndex(row => row[0] === "Resolution") + 2) + ":C" + statsData.length);
-  var resolutionChart = statsSheet.newChart()
-    .setChartType(Charts.ChartType.PIE)
-    .addRange(resolutionRange)
-    .setPosition(20, 5, 0, 0)
-    .setOption("title", "Issue Resolution Distribution")
-    .build();
-
-  statsSheet.insertChart(statusChart);
-  statsSheet.insertChart(resolutionChart);
+  statsSheet.insertChart(assigneeChart);
 }
