@@ -3,21 +3,10 @@ function createChartsAndStats() {
   var data = sheet.getDataRange().getValues();
 
   var headers = data[0];
-  var issueTypeIndex = headers.indexOf("Issue Type");
   var assigneeIndex = headers.indexOf("Assignee");
-  var reporterIndex = headers.indexOf("Reporter");
-  var priorityIndex = headers.indexOf("Priority");
-  var statusIndex = headers.indexOf("Status");
-  var resolutionIndex = headers.indexOf("Resolution");
   var createdIndex = headers.indexOf("Created");
   var resolvedIndex = headers.indexOf("Resolved");
 
-  var issueTypeCounts = {};
-  var assigneeCounts = {};
-  var reporterCounts = {};
-  var priorityCounts = {};
-  var statusCounts = {};
-  var resolutionCounts = {};
   var assigneeOpenedCounts = {};
   var assigneeClosedCounts = {};
   var assigneeClosedLastWeekCounts = {};
@@ -29,24 +18,11 @@ function createChartsAndStats() {
   startOfLastWeek.setDate(startOfLastWeek.getDate() - 7);
   var endOfLastWeek = new Date(startOfWeek);
   endOfLastWeek.setDate(endOfLastWeek.getDate() - 1);
-  var startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
   for (var i = 1; i < data.length; i++) {
-    var issueType = data[i][issueTypeIndex];
     var assignee = data[i][assigneeIndex];
-    var reporter = data[i][reporterIndex];
-    var priority = data[i][priorityIndex];
-    var status = data[i][statusIndex];
-    var resolution = data[i][resolutionIndex];
     var createdDate = new Date(data[i][createdIndex]);
     var resolvedDate = data[i][resolvedIndex] ? new Date(data[i][resolvedIndex]) : null;
-
-    issueTypeCounts[issueType] = (issueTypeCounts[issueType] || 0) + 1;
-    assigneeCounts[assignee] = (assigneeCounts[assignee] || 0) + 1;
-    reporterCounts[reporter] = (reporterCounts[reporter] || 0) + 1;
-    priorityCounts[priority] = (priorityCounts[priority] || 0) + 1;
-    statusCounts[status] = (statusCounts[status] || 0) + 1;
-    resolutionCounts[resolution] = (resolutionCounts[resolution] || 0) + 1;
 
     assigneeOpenedCounts[assignee] = (assigneeOpenedCounts[assignee] || 0) + 1;
     if (resolvedDate) {
@@ -64,43 +40,35 @@ function createChartsAndStats() {
     statsSheet.clear();
   }
 
-  var statsData = [
-    ["Category", "Value", "Count"],
-    ["Issues Created", "This Week", Object.values(issueTypeCounts).reduce((a, b) => a + b, 0)],
-    ["Issues Created", "This Month", Object.values(assigneeOpenedCounts).reduce((a, b) => a + b, 0)],
-    ["Issue Type", "", ""],
-    ...Object.entries(issueTypeCounts).map(([key, value]) => ["", key, value]),
-    ["Assignee", "", ""],
-    ...Object.entries(assigneeCounts).map(([key, value]) => ["", key, value]),
-    ["Reporter", "", ""],
-    ...Object.entries(reporterCounts).map(([key, value]) => ["", key, value]),
-    ["Priority", "", ""],
-    ...Object.entries(priorityCounts).map(([key, value]) => ["", key, value]),
-    ["Status", "", ""],
-    ...Object.entries(statusCounts).map(([key, value]) => ["", key, value]),
-    ["Resolution", "", ""],
-    ...Object.entries(resolutionCounts).map(([key, value]) => ["", key, value]),
-    ["Assignee Performance", "", ""],
-    ...Object.keys(assigneeOpenedCounts).map((assignee) => [
+  // Prepare data for Assignee Performance Chart
+  var assigneePerformanceData = [["Assignee", "Opened", "Closed", "Closed Last Week"]];
+  Object.keys(assigneeOpenedCounts).forEach(function (assignee) {
+    assigneePerformanceData.push([
       assignee,
-      "Opened: " + (assigneeOpenedCounts[assignee] || 0),
-      "Closed: " + (assigneeClosedCounts[assignee] || 0) + ", Closed Last Week: " + (assigneeClosedLastWeekCounts[assignee] || 0)
-    ]),
-  ];
+      assigneeOpenedCounts[assignee] || 0,
+      assigneeClosedCounts[assignee] || 0,
+      assigneeClosedLastWeekCounts[assignee] || 0
+    ]);
+  });
 
-  statsSheet.getRange(1, 1, statsData.length, 3).setValues(statsData);
+  // Write data to sheet
+  statsSheet.getRange(1, 1, assigneePerformanceData.length, 4).setValues(assigneePerformanceData);
 
-  // Assignee Performance Chart
-  var assigneeRange = statsSheet.getRange(
-    "A" + (statsData.findIndex(row => row[0] === "Assignee Performance") + 2) + 
-    ":C" + statsData.length
-  );
-  var assigneeChart = statsSheet.newChart()
+  // Add Assignee Performance Chart
+  var dataRange = statsSheet.getRange(2, 1, assigneePerformanceData.length - 1, 4);
+  var chart = statsSheet.newChart()
     .setChartType(Charts.ChartType.COLUMN)
-    .addRange(assigneeRange)
-    .setPosition(40, 5, 0, 0)
-    .setOption("title", "Assignee Performance (Opened, Closed, Closed Last Week)")
+    .addRange(dataRange)
+    .setPosition(10, 5, 0, 0)
+    .setOption("title", "Assignee Performance")
+    .setOption("hAxis", { title: "Assignee" })
+    .setOption("vAxis", { title: "Count" })
+    .setOption("series", {
+      0: { color: "blue" }, // Opened
+      1: { color: "green" }, // Closed
+      2: { color: "orange" }, // Closed Last Week
+    })
     .build();
 
-  statsSheet.insertChart(assigneeChart);
+  statsSheet.insertChart(chart);
 }
